@@ -1,0 +1,30 @@
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: creator-companion-scheduler
+  namespace: default
+spec:
+  template:
+    spec:
+      template:
+        spec:
+          containers:
+            - image: gcr.io/PROJECT_ID/creator-companion-api:latest
+              command: ["python", "-m", "app.workers.scheduler"]
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: "512Mi"
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: creator-companion-secrets
+                      key: database_url
+                - name: REDIS_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: creator-companion-secrets
+                      key: redis_url
+          restartPolicy: OnFailure
+          maxRetries: 3
