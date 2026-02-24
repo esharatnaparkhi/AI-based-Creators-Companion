@@ -1,8 +1,67 @@
-# AI Creator Companion
+# CreatorAI
 
-A full-stack AI companion for social media creators — multi-platform account aggregation, AI-powered content generation, scheduling, publishing, and analytics.
+CreatorAI is a platform built on a custom RAG-based agentic architecture that uses modular AI services and structured workflow orchestration. It enables social media creators to connect their accounts, generate AI-powered content grounded in their own historical data, schedule and publish posts reliably, and track performance insights, all within a production-oriented, multi-tenant system.
+ 
+### *What It Does*
+- Connects creator accounts using OAuth (YouTube, Instagram, X, LinkedIn-ready design)
+- Fetches historical posts and engagement data
+- Converts content into embeddings for contextual retrieval (RAG)
+- Generates platform-aware AI drafts using creator history
+- Applies compliance and safety checks
+- Schedules and publishes posts with retry handling
+- Aggregates analytics and suggests optimal posting times
+- System Design
+- The system is built around independent agents coordinated by a central orchestrator.
 
-## Architecture
+### *Technical Highlights*
+- RAG implementation via vectorization_agent
+- LLM orchestration via composer_agent
+- Multi-step AI workflows coordinated by orchestrator
+- Platform-aware prompt structuring
+- Production-style modular backend architecture
+- Strict multi-tenant vector isolation
+
+### *Agents* 
+- Auth Agent : Handles OAuth flows, encrypted token storage, and refresh logic.
+- Ingestion Agent : Fetches historical content and normalizes platform data.
+- Vectorization Agent :Chunks text, generates embeddings, stores vectors per tenant, and provides retrieval for RAG.
+- Composer Agent : Uses LLM + retrieved context to generate structured, platform-optimized drafts.
+- Compliance Agent : Enforces character limits, formatting rules, and safety checks.
+- Planner Agent : Suggests posting schedules based on analytics and heuristics.
+- Publisher Agent : Executes scheduled publishing with retries and backoff handling.
+- Analytics Agent : Aggregates engagement metrics and computes KPIs.
+- Orchestrator : Coordinates full workflows from onboarding → ingest → vectorize → generate → validate → schedule → publish → analyze.
+  
+> Each agent is independently testable and communicates via APIs or events.
+
+### *Tech Stack*
+- Backend:
+    - FastAPI (async)
+    - SQLAlchemy + Alembic
+    - PostgreSQL
+    - Redis
+    - OpenAI-compatible LLM APIs
+    - Pinecone or Vertex-based vector storage
+- Infrastructure:
+    - GCP (Cloud Run, Cloud SQL, Pub/Sub, Secret Manager)
+    - Docker & Docker Compose
+    - Terraform (infrastructure as code)
+- Frontend:
+    - Next.js
+    - TailwindCSS
+    - React Query + Zustand
+
+### *Key Features*
+
+- Key Capabilities
+- Multi-tenant architecture with isolated vector namespaces
+- Encrypted credential storage
+- RAG-based content generation using creator history
+- Reliable scheduling with retry-safe publishing
+- KPI computation and performance insights
+- End-to-end tested workf
+
+### *Architecture*
 
 ```
 ai-creator-companion/
@@ -19,188 +78,3 @@ ai-creator-companion/
 ├── infrastructure/       # GCP / Kubernetes manifests
 └── scripts/              # Dev & deploy scripts
 ```
-
-## Tech Stack
-
-- **Backend**: FastAPI, SQLAlchemy, Alembic, Redis, OpenAI, Pinecone/Vertex
-- **Frontend**: Next.js, TailwindCSS, React Query, Zustand
-- **Infra**: GCP (Cloud Run, Cloud SQL, Pub/Sub, BigQuery, Secret Manager)
-- **Auth**: JWT + OAuth2
-
-## Quick Start
-
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- Docker & Docker Compose
-- GCP project with required APIs enabled
-
-### Local Development
-
-```bash
-# Clone and setup
-git clone <repo>
-cd ai-creator-companion
-
-# Backend
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env  # fill in your secrets
-
-# Run DB migrations
-alembic upgrade head
-
-# Start backend
-uvicorn app.main:app --reload --port 8000
-
-# Frontend (separate terminal)
-cd frontend
-npm install
-cp .env.local.example .env.local
-npm run dev
-```
-
-### Docker Compose (full stack)
-
-```bash
-docker-compose up --build
-```
-
-## Environment Variables
-
-See `backend/.env.example` and `frontend/.env.local.example`.
-
-## API Documentation
-
-Once running, visit `http://localhost:8000/docs` for interactive Swagger UI.
-
-## Deployment
-
-See `infrastructure/` for GCP Cloud Run and GKE manifests.
-
-```bash
-./scripts/deploy.sh production
-```
-
-
-
-ai-creator-companion/
-│
-├── README.md
-├── docker-compose.yml                        # Full local dev stack
-│
-├── backend/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── alembic.ini
-│   ├── pytest.ini
-│   ├── .env.example
-│   │
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py                           # FastAPI app, CORS, Sentry, Prometheus
-│   │   ├── config.py                         # Pydantic settings (all env vars)
-│   │   ├── database.py                       # SQLAlchemy async engine + session
-│   │   │
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   ├── orm.py                        # User, Account, Post, Draft, VectorMeta,
-│   │   │   │                                 # ScheduleJob, AnalyticsRow, AuditLog
-│   │   │   └── schemas.py                    # Pydantic request/response schemas
-│   │   │
-│   │   ├── api/                              # FastAPI routers
-│   │   │   ├── __init__.py
-│   │   │   ├── auth.py                       # POST /register, /login, /oauth/{platform}/start+callback
-│   │   │   ├── accounts.py                   # GET/DELETE /accounts
-│   │   │   ├── ingest.py                     # POST /ingest/{account_id}/sync, /webhook/{platform}
-│   │   │   ├── drafts.py                     # POST /drafts/generate, GET/PATCH/DELETE /drafts
-│   │   │   ├── posts.py                      # GET /posts, POST /posts/schedule, POST /publish/{job_id}/execute
-│   │   │   ├── analytics.py                  # GET /analytics/summary, /analytics/calendar
-│   │   │   └── gdpr.py                       # GET /gdpr/export, DELETE /gdpr/delete-account
-│   │   │
-│   │   ├── agents/                           # Agent microservices
-│   │   │   ├── __init__.py
-│   │   │   ├── auth_agent.py                 # OAuth flows, token refresh, encrypted storage
-│   │   │   ├── ingestion_agent.py            # Fetch history from YouTube/Instagram/LinkedIn/X
-│   │   │   ├── vectorization_agent.py        # Chunk text, embed, upsert to Pinecone, RAG retrieval
-│   │   │   ├── composer_agent.py             # LLM draft generation with RAG + platform rules
-│   │   │   ├── compliance_agent.py           # Safety checks, platform char limits, human review flags
-│   │   │   ├── planner_agent.py              # Weekly calendar suggestions (heuristics + analytics)
-│   │   │   ├── publisher_agent.py            # Execute publishes to each platform with retry/backoff
-│   │   │   ├── analytics_agent.py            # KPI computation, fetch live metrics from platforms
-│   │   │   └── orchestrator.py               # Coordinate multi-step workflows (onboarding, scheduler)
-│   │   │
-│   │   ├── services/                         # Shared infrastructure services
-│   │   │   ├── __init__.py
-│   │   │   ├── security.py                   # JWT, bcrypt, Fernet token encryption, service auth
-│   │   │   ├── llm.py                        # OpenAI embeddings + chat completions, platform rules
-│   │   │   ├── vector_db.py                  # Pinecone upsert/query/delete, multi-tenant namespaces
-│   │   │   ├── cache.py                      # Redis async get/set/delete
-│   │   │   ├── pubsub.py                     # GCP Pub/Sub event publishing
-│   │   │   ├── audit.py                      # Audit log writer
-│   │   │   └── oauth_config.py               # OAuth2 configs for all 4 platforms + redirect URIs
-│   │   │
-│   │   └── workers/
-│   │       ├── __init__.py
-│   │       └── scheduler.py                  # Async polling loop — picks up due jobs every 30s
-│   │
-│   ├── migrations/
-│   │   ├── env.py                            # Alembic async env config
-│   │   └── versions/
-│   │       └── 0001_initial.py               # All tables + indexes in one migration
-│   │
-│   └── tests/
-│       ├── conftest.py                       # pytest fixtures: DB, async client, user, auth_headers
-│       ├── unit/
-│       │   ├── test_compliance.py            # ComplianceAgent — safety, platform rules
-│       │   ├── test_vectorization.py         # VectorizationAgent — chunking, embedding, RAG
-│       │   ├── test_composer.py              # ComposerAgent — draft generation, compliance filter
-│       │   └── test_analytics.py            # AnalyticsAgent — KPI computation, platform breakdown
-│       └── e2e/
-│           └── test_pipeline.py             # Full flow: register → draft → schedule → analytics
-│
-├── frontend/
-│   ├── Dockerfile
-│   ├── package.json
-│   ├── next.config.js
-│   ├── tailwind.config.js
-│   ├── .env.local.example
-│   │
-│   └── src/
-│       ├── styles/
-│       │   └── globals.css
-│       │
-│       ├── services/
-│       │   └── api.ts                        # Axios client, JWT interceptor, all API methods
-│       │
-│       ├── store/
-│       │   └── auth.ts                       # Zustand auth store (user, token, hydrate, logout)
-│       │
-│       ├── hooks/
-│       │   └── useApi.ts                     # React Query hooks for all resources
-│       │
-│       ├── components/
-│       │   ├── ui.tsx                        # Button, Card, Badge, Input, Select, Spinner, EmptyState
-│       │   ├── Sidebar.tsx                   # Navigation sidebar with active state
-│       │   └── Layout.tsx                    # Auth-guarded layout wrapper
-│       │
-│       └── pages/
-│           ├── _app.tsx                      # QueryClient + Toaster providers
-│           ├── index.tsx                     # Redirect to /dashboard or /login
-│           ├── login.tsx                     # Email/password login form
-│           ├── register.tsx                  # Registration form
-│           ├── dashboard.tsx                 # KPI overview, platform stats, trend
-│           ├── accounts.tsx                  # Connect/disconnect/sync platforms
-│           ├── drafts.tsx                    # Generate AI drafts, view, copy, schedule
-│           ├── schedule.tsx                  # Scheduled jobs, AI calendar suggestions
-│           └── analytics.tsx                # Bar + pie charts, engagement rate, best hours
-│
-└── infrastructure/
-    └── gcp/
-        ├── main.tf                           # Terraform: VPC, Cloud SQL, Redis, GCS, BigQuery, Pub/Sub
-        ├── cloud-run-api.yaml                # Cloud Run service for API (autoscale 1–20)
-        ├── cloud-run-worker.yaml             # Cloud Run Job for scheduler worker
-        ├── setup-pubsub.sh                   # Create Pub/Sub topics + subscriptions + DLQs
-        └── setup-secrets.sh                  # Create Secret Manager secrets
