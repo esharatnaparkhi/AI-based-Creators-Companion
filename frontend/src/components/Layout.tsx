@@ -17,14 +17,13 @@ export function Layout({ children }: { children: ReactNode }) {
   }, [user, isPublic, router]);
 
   if (isPublic) return <>{children}</>;
-
   if (!user) return null;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-surface-100">
       <Sidebar />
-      <main className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto p-8">{children}</div>
+      <main className="flex-1 overflow-auto min-w-0">
+        <div className="max-w-6xl mx-auto p-8">{children}</div>
       </main>
     </div>
   );

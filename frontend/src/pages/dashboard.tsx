@@ -1,116 +1,172 @@
 import { Layout } from "@/components/Layout";
-import { Card, Badge, Spinner } from "@/components/ui";
+import { Card, MetricCard, Spinner, Button } from "@/components/ui";
 import { useAnalyticsSummary, useAccounts, useDrafts, useScheduledJobs } from "@/hooks/useApi";
 import { useAuthStore } from "@/store/auth";
-import { TrendingUp, TrendingDown, Minus, Eye, Heart, MessageCircle, Layers } from "lucide-react";
+import { Eye, Heart, MessageCircle, Layers, ArrowRight, Sparkles, Calendar, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import Link from "next/link";
-
-function StatCard({ label, value, icon }: { label: string; value: string | number; icon: React.ReactNode }) {
-  return (
-    <Card>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-gray-500">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-        </div>
-        <div className="p-2 bg-brand-50 rounded-lg text-brand-600">{icon}</div>
-      </div>
-    </Card>
-  );
-}
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
-  const { data: analytics, isLoading: analyticsLoading } = useAnalyticsSummary();
+  const { data: analytics, isLoading } = useAnalyticsSummary();
   const { data: accounts } = useAccounts();
   const { data: drafts } = useDrafts();
   const { data: jobs } = useScheduledJobs();
 
-  const trend = analytics?.recent_trend;
-  const TrendIcon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
-  const trendColor = trend === "up" ? "text-green-600" : trend === "down" ? "text-red-500" : "text-gray-400";
+  const firstName   = user?.name?.split(" ")[0] ?? "there";
+  const pendingJobs = jobs?.filter((j: any) => j.status === "pending")?.length ?? 0;
+  const trend       = analytics?.recent_trend;
+  const TrendIcon   = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
 
   return (
     <Layout>
-      <div className="space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Good morning, {user?.name?.split(" ")[0]} 👋
-          </h1>
-          <p className="text-gray-500 mt-1">Here's what's happening with your content.</p>
-        </div>
+      <div className="space-y-4">
 
-        {/* Quick stats */}
-        {analyticsLoading ? (
-          <div className="flex justify-center py-12"><Spinner /></div>
-        ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Total Posts" value={analytics?.total_posts ?? 0} icon={<Layers size={20} />} />
-            <StatCard label="Total Likes" value={analytics?.total_likes?.toLocaleString() ?? 0} icon={<Heart size={20} />} />
-            <StatCard label="Comments" value={analytics?.total_comments?.toLocaleString() ?? 0} icon={<MessageCircle size={20} />} />
-            <StatCard label="Views" value={analytics?.total_views?.toLocaleString() ?? 0} icon={<Eye size={20} />} />
-          </div>
-        )}
+        {/* ── Row 1: welcome + top stats ─────────────────────────────── */}
+        <div className="grid grid-cols-12 gap-4">
 
-        {/* Status row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <p className="text-sm font-medium text-gray-700 mb-2">Connected Platforms</p>
-            <p className="text-3xl font-bold text-gray-900">{accounts?.length ?? 0}</p>
-            {(accounts?.length ?? 0) < 2 && (
-              <Link href="/accounts" className="text-xs text-brand-600 hover:underline mt-2 block">
-                Connect more platforms →
-              </Link>
-            )}
-          </Card>
-
-          <Card>
-            <p className="text-sm font-medium text-gray-700 mb-2">Drafts Ready</p>
-            <p className="text-3xl font-bold text-gray-900">{drafts?.length ?? 0}</p>
-            <Link href="/drafts" className="text-xs text-brand-600 hover:underline mt-2 block">
-              View all drafts →
-            </Link>
-          </Card>
-
-          <Card>
-            <p className="text-sm font-medium text-gray-700 mb-2">Scheduled Posts</p>
-            <p className="text-3xl font-bold text-gray-900">
-              {jobs?.filter((j: any) => j.status === "pending")?.length ?? 0}
-            </p>
-            <Link href="/schedule" className="text-xs text-brand-600 hover:underline mt-2 block">
-              Manage schedule →
-            </Link>
-          </Card>
-        </div>
-
-        {/* Engagement trend */}
-        {analytics && (
-          <Card>
-            <div className="flex items-center justify-between">
+          {/* Welcome — dark, tall */}
+          <div className="col-span-12 lg:col-span-7">
+            <Card variant="dark" className="h-full min-h-[196px] flex flex-col justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-700">Avg Engagement Rate</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">
-                  {analytics.avg_engagement_rate}%
+                <p className="text-white/40 text-xs font-medium uppercase tracking-widest mb-2">Overview</p>
+                <h1 className="text-[2rem] font-bold text-white leading-tight">
+                  Hey, {firstName}.
+                </h1>
+                <p className="text-white/40 text-sm mt-2">
+                  {accounts?.length ?? 0} platform{(accounts?.length ?? 0) !== 1 ? "s" : ""} connected
+                  {" · "}
+                  {drafts?.length ?? 0} draft{(drafts?.length ?? 0) !== 1 ? "s" : ""} ready
                 </p>
               </div>
-              <div className={`flex items-center gap-1 ${trendColor}`}>
-                <TrendIcon size={20} />
-                <span className="text-sm font-medium capitalize">{trend}</span>
+              <div className="flex gap-2 mt-6">
+                <Link href="/drafts">
+                  <Button variant="primary" size="sm">
+                    <Sparkles size={13} />
+                    Generate drafts
+                  </Button>
+                </Link>
+                <Link href="/schedule">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white/50 hover:text-white hover:bg-white/10 focus:ring-white/20"
+                  >
+                    <Calendar size={13} />
+                    Schedule
+                  </Button>
+                </Link>
               </div>
-            </div>
+            </Card>
+          </div>
 
-            {analytics.best_posting_hours?.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-xs text-gray-500 mb-2">Best posting hours (UTC)</p>
-                <div className="flex gap-2">
-                  {analytics.best_posting_hours.map((h: number) => (
-                    <Badge key={h} color="blue">{h}:00</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
+          {/* 2×2 mini stats */}
+          <div className="col-span-12 lg:col-span-5 grid grid-cols-2 gap-4">
+            <MetricCard
+              label="Total Posts"
+              value={isLoading ? "—" : (analytics?.total_posts ?? 0).toLocaleString()}
+              icon={<Layers size={15} />}
+            />
+            <MetricCard
+              label="Likes"
+              value={isLoading ? "—" : (analytics?.total_likes ?? 0).toLocaleString()}
+              icon={<Heart size={15} />}
+            />
+            <MetricCard
+              label="Comments"
+              value={isLoading ? "—" : (analytics?.total_comments ?? 0).toLocaleString()}
+              icon={<MessageCircle size={15} />}
+            />
+            <MetricCard
+              label="Views"
+              value={isLoading ? "—" : (analytics?.total_views ?? 0).toLocaleString()}
+              icon={<Eye size={15} />}
+            />
+          </div>
+        </div>
+
+        {/* ── Row 2: engagement + drafts + scheduled ──────────────────── */}
+        <div className="grid grid-cols-12 gap-4">
+
+          {/* Engagement rate — orange accent */}
+          <div className="col-span-12 lg:col-span-4">
+            <MetricCard
+              label="Avg Engagement Rate"
+              value={`${analytics?.avg_engagement_rate ?? 0}%`}
+              sub={trend ? `Trending ${trend}` : "No data yet"}
+              variant="accent"
+              className="h-full"
+              icon={<TrendIcon size={15} />}
+            />
+          </div>
+
+          {/* Drafts ready — dark */}
+          <div className="col-span-12 lg:col-span-4">
+            <MetricCard
+              label="Drafts Ready"
+              value={drafts?.length ?? 0}
+              sub="Awaiting review"
+              variant="dark"
+              className="h-full"
+              action={
+                <Link
+                  href="/drafts"
+                  className="inline-flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors"
+                >
+                  View all <ArrowRight size={11} />
+                </Link>
+              }
+            />
+          </div>
+
+          {/* Scheduled posts — light */}
+          <div className="col-span-12 lg:col-span-4">
+            <MetricCard
+              label="Scheduled Posts"
+              value={pendingJobs}
+              sub="Pending publish"
+              className="h-full"
+              action={
+                <Link
+                  href="/schedule"
+                  className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 transition-colors"
+                >
+                  Manage <ArrowRight size={11} />
+                </Link>
+              }
+            />
+          </div>
+        </div>
+
+        {/* ── Row 3: best posting hours ────────────────────────────────── */}
+        {analytics?.best_posting_hours?.length > 0 && (
+          <Card variant="muted" padding="md">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-ink">Best posting hours (UTC)</p>
+              <Link
+                href="/analytics"
+                className="text-xs text-brand-600 hover:text-brand-700 inline-flex items-center gap-1"
+              >
+                Full analytics <ArrowRight size={11} />
+              </Link>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {analytics.best_posting_hours.map((h: number) => (
+                <span
+                  key={h}
+                  className="px-3 py-1.5 bg-white rounded-full text-sm font-medium text-ink shadow-sm"
+                >
+                  {h}:00
+                </span>
+              ))}
+            </div>
           </Card>
+        )}
+
+        {/* Loading fallback */}
+        {isLoading && (
+          <div className="flex justify-center py-12">
+            <Spinner />
+          </div>
         )}
       </div>
     </Layout>
