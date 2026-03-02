@@ -5,10 +5,8 @@ from sqlalchemy import select
 
 from app.database import get_db
 from app.models.orm import Account
-from app.models.schemas import AccountOut, SyncResponse
+from app.models.schemas import AccountOut
 from app.services.security import get_current_user_id
-from app.agents.ingestion_agent import ingestion_agent
-from app.services.pubsub import publish_ingestion_job
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 

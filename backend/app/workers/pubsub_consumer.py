@@ -2,7 +2,6 @@
 import asyncio
 import json
 import structlog
-from concurrent.futures import TimeoutError
 
 logger = structlog.get_logger()
 

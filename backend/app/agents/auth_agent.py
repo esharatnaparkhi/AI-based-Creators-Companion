@@ -3,6 +3,7 @@ import secrets
 import httpx
 import structlog
 from datetime import datetime, timedelta
+from urllib.parse import urlencode
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -33,8 +34,7 @@ class AuthAgent:
             "state": state,
             "access_type": "offline",  # for refresh tokens
         }
-        query = "&".join(f"{k}={v}" for k, v in params.items())
-        redirect_url = f"{config['authorize_url']}?{query}"
+        redirect_url = f"{config['authorize_url']}?{urlencode(params)}"
         return {"redirect_url": redirect_url, "state": state}
 
     async def handle_oauth_callback(

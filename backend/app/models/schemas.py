@@ -69,6 +69,11 @@ class DraftGenerateRequest(BaseModel):
     platform_targets: List[str] = Field(default_factory=list)
     topic: Optional[str] = None
     tone: Optional[str] = None
+    keywords: Optional[List[str]] = None
+    target_audience: Optional[str] = None
+    content_style: Optional[str] = None
+    post_length: Optional[str] = None  # "short", "medium", "long"
+    generate_image: bool = False
 
 
 class DraftOut(BaseModel):
@@ -78,6 +83,7 @@ class DraftOut(BaseModel):
     hook_variations: Optional[List[str]]
     score: Optional[float]
     tags: Optional[List[str]]
+    image_url: Optional[str] = None
     created_at: datetime
 
     class Config:

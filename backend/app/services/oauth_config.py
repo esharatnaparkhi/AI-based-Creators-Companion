@@ -23,13 +23,18 @@ OAUTH_CONFIGS = {
         "userinfo_url": "https://graph.instagram.com/me?fields=id,username",
     },
     "linkedin": {
-        "client_id": settings.linkedin_client_id,
-        "client_secret": settings.linkedin_client_secret,
-        "authorize_url": "https://www.linkedin.com/oauth/v2/authorization",
-        "token_url": "https://www.linkedin.com/oauth/v2/accessToken",
-        "scopes": ["r_liteprofile", "r_emailaddress", "w_member_social"],
-        "userinfo_url": "https://api.linkedin.com/v2/me",
-    },
+    "client_id": settings.linkedin_client_id,
+    "client_secret": settings.linkedin_client_secret,
+    "authorize_url": "https://www.linkedin.com/oauth/v2/authorization",
+    "token_url": "https://www.linkedin.com/oauth/v2/accessToken",
+    "scopes": [
+        "openid",
+        "profile",
+        "email",
+        "w_member_social",  # only if approved
+    ],
+    "userinfo_url": "https://api.linkedin.com/v2/userinfo",
+},
     "x": {
         "client_id": settings.x_client_id,
         "client_secret": settings.x_client_secret,

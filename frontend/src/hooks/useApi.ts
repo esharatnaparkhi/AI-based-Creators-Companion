@@ -22,9 +22,14 @@ export function useDisconnectAccount() {
 }
 
 export function useSyncAccount() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (accountId: string) => accountsApi.sync(accountId),
-    onSuccess: () => toast.success("Sync started"),
+    mutationFn: (accountId: string) => accountsApi.sync(accountId).then((r) => r.data),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["accounts"] });
+      const count = data?.posts_ingested ?? 0;
+      toast.success(`Sync complete — ${count} post${count !== 1 ? "s" : ""} imported`);
+    },
     onError: () => toast.error("Sync failed"),
   });
 }
@@ -44,6 +49,11 @@ export function useGenerateDrafts() {
       platform_targets: string[];
       topic?: string;
       tone?: string;
+      keywords?: string[];
+      target_audience?: string;
+      content_style?: string;
+      post_length?: string;
+      generate_image?: boolean;
     }) => draftsApi.generate(data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["drafts"] });

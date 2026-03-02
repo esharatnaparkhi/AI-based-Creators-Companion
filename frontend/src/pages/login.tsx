@@ -18,12 +18,18 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const resp = await authApi.login({ email, password });
-      const { access_token, user_id, email: userEmail } = resp.data;
-      // Fetch full user
-      const meResp = await authApi.me();
-      setAuth(meResp.data, access_token);
-      router.push("/dashboard");
+        const resp = await authApi.login({ email, password });
+        const { access_token } = resp.data;
+
+        // Store token first
+        localStorage.setItem("access_token", access_token);
+
+        // Now /me will include Authorization header
+        const meResp = await authApi.me();
+
+        setAuth(meResp.data, access_token);
+
+        router.push("/dashboard");
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Login failed");
     } finally {

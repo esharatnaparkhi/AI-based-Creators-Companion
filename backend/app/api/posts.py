@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models.orm import Post, Draft, ScheduleJob, JobStatusEnum, PostStatusEnum
@@ -36,8 +36,11 @@ async def schedule_post(
     db: AsyncSession = Depends(get_db),
 ):
     """Schedule a draft for publishing."""
-    if body.scheduled_at < datetime.utcnow():
+    if body.scheduled_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="scheduled_at must be in the future")
+
+    # Normalise to naive UTC for storage (DB columns are TIMESTAMP WITHOUT TIME ZONE)
+    scheduled_at_utc = body.scheduled_at.astimezone(timezone.utc).replace(tzinfo=None)
 
     # Verify draft ownership
     result = await db.execute(
@@ -52,7 +55,7 @@ async def schedule_post(
         user_id=user_id,
         content=draft.content,
         status=PostStatusEnum.scheduled,
-        scheduled_at=body.scheduled_at,
+        scheduled_at=scheduled_at_utc,
         platform=body.platforms[0] if body.platforms else None,
     )
     db.add(post)
@@ -62,7 +65,7 @@ async def schedule_post(
     job = ScheduleJob(
         post_id=post.id,
         draft_id=body.draft_id,
-        scheduled_at=body.scheduled_at,
+        scheduled_at=scheduled_at_utc,
         status=JobStatusEnum.pending,
         platform_targets=body.platforms,
     )
@@ -71,7 +74,7 @@ async def schedule_post(
 
     return ScheduleResponse(
         job_id=job.id,
-        scheduled_at=body.scheduled_at,
+        scheduled_at=scheduled_at_utc,
         status="scheduled",
     )
 

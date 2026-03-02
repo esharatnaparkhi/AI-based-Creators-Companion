@@ -66,7 +66,12 @@ async def _run_sync(account_id: str, user_id: str):
             await db.commit()
         except Exception as exc:
             import structlog
-            structlog.get_logger().error("background_sync_failed", error=str(exc))
+            structlog.get_logger().error(
+                "background_sync_failed",
+                error=str(exc) or type(exc).__name__,
+                exc_type=type(exc).__name__,
+            )
+            await db.rollback()
 
 
 @router.post("/webhook/{platform}")

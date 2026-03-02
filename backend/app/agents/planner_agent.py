@@ -2,9 +2,9 @@
 from datetime import datetime, timedelta
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select
 
-from app.models.orm import Post, AnalyticsRow
+from app.models.orm import Post
 
 logger = structlog.get_logger()
 
@@ -75,32 +75,38 @@ class PlannerAgent:
         user_id: str,
         db: AsyncSession,
     ) -> dict[str, list[int]]:
-        """Query DB to find historically best posting hours per platform."""
+        """Find historically best posting hours per platform from published posts."""
         result = await db.execute(
-            select(AnalyticsRow).where(
-                AnalyticsRow.user_id == user_id,
-                AnalyticsRow.metric == "likes",
-            ).limit(200)
+            select(Post).where(
+                Post.user_id == user_id,
+                Post.published_at.isnot(None),
+                Post.platform.isnot(None),
+            ).limit(500)
         )
-        rows = result.scalars().all()
+        posts = result.scalars().all()
 
-        if not rows:
+        if not posts:
             return {}
 
-        # Group by platform and hour
         from collections import defaultdict
         hour_scores: dict[str, dict[int, float]] = defaultdict(lambda: defaultdict(float))
 
-        for row in rows:
-            dims = row.dimensions or {}
-            platform = dims.get("platform")
-            hour = dims.get("hour")
-            if platform and hour is not None:
-                hour_scores[platform][int(hour)] += row.value
+        for post in posts:
+            if not post.platform or not post.published_at:
+                continue
+            hour = post.published_at.hour
+            metrics = post.metrics or {}
+            engagement = (
+                metrics.get("likes", 0)
+                + metrics.get("comments", 0) * 2
+                + metrics.get("shares", 0) * 3
+                + metrics.get("views", 0) * 0.1
+            )
+            hour_scores[post.platform][hour] += max(engagement, 1.0)
 
         best_times = {}
         for platform, hour_map in hour_scores.items():
-            sorted_hours = sorted(hour_map, key=hour_map.get, reverse=True)
+            sorted_hours = sorted(hour_map, key=lambda h: hour_map[h], reverse=True)
             best_times[platform] = sorted_hours[:4]
 
         return best_times

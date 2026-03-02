@@ -19,12 +19,17 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const resp = await authApi.register({ name, email, password });
-      const { access_token } = resp.data;
-      const meResp = await authApi.me();
-      setAuth(meResp.data, access_token);
-      toast.success("Account created! Connect your first platform.");
-      router.push("/accounts");
+        const resp = await authApi.register({ name, email, password });
+        const { access_token } = resp.data;
+
+        // Store token first
+        localStorage.setItem("access_token", access_token);
+
+        const meResp = await authApi.me();
+
+        setAuth(meResp.data, access_token);
+
+        router.push("/accounts");
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Registration failed");
     } finally {

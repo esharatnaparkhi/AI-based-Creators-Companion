@@ -12,7 +12,12 @@ from fastapi.security import OAuth2PasswordBearer
 
 from app.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_fernet_instance: Optional[Fernet] = None
+
+pwd_context = CryptContext(
+    schemes=["argon2"],
+    deprecated="auto"
+)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
@@ -61,6 +66,9 @@ async def get_current_user_id(token: str = Depends(oauth2_scheme)) -> str:
 # Token encryption (for OAuth tokens at rest)
 # ---------------------------------------------------------------------------
 def _get_fernet() -> Fernet:
+    global _fernet_instance
+    if _fernet_instance is not None:
+        return _fernet_instance
     key = settings.token_encryption_key
     if not key:
         # Generate a key for dev; in prod this must come from Secret Manager
@@ -68,7 +76,8 @@ def _get_fernet() -> Fernet:
     # Ensure proper fernet key format
     if len(key) != 44:
         key = base64.urlsafe_b64encode(key.encode()[:32].ljust(32, b"0")).decode()
-    return Fernet(key.encode())
+    _fernet_instance = Fernet(key.encode())
+    return _fernet_instance
 
 
 def encrypt_token(token: str) -> str:

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 from sqlalchemy import (
     String, Text, DateTime, Boolean, Integer, Float,
-    ForeignKey, JSON, Enum as SAEnum
+    ForeignKey, JSON
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -70,7 +70,7 @@ class Account(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    platform: Mapped[PlatformEnum] = mapped_column(SAEnum(PlatformEnum), nullable=False)
+    platform: Mapped[str] = mapped_column(String(50), nullable=False)
     platform_user_id: Mapped[Optional[str]] = mapped_column(String(255))
     platform_username: Mapped[Optional[str]] = mapped_column(String(255))
     encrypted_access_token: Mapped[Optional[str]] = mapped_column(Text)
@@ -95,10 +95,12 @@ class Post(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     account_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("accounts.id", ondelete="SET NULL"))
-    platform: Mapped[Optional[PlatformEnum]] = mapped_column(SAEnum(PlatformEnum))
+    platform: Mapped[Optional[str]] = mapped_column(String(50))
     content: Mapped[Optional[str]] = mapped_column(Text)
     media_refs: Mapped[Optional[list]] = mapped_column(JSON, default=list)
-    status: Mapped[PostStatusEnum] = mapped_column(SAEnum(PostStatusEnum), default=PostStatusEnum.draft)
+    status: Mapped[str] = mapped_column(
+    String(50),
+    default="draft")
     scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     published_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     platform_post_id: Mapped[Optional[str]] = mapped_column(String(255))
@@ -125,6 +127,7 @@ class Draft(Base):
     score: Mapped[Optional[float]] = mapped_column(Float)
     tags: Mapped[Optional[list]] = mapped_column(JSON, default=list)
     hook_variations: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+    image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -142,7 +145,7 @@ class VectorMeta(Base):
     object_type: Mapped[str] = mapped_column(String(100), nullable=False)
     object_id: Mapped[str] = mapped_column(String(36), nullable=False)
     vector_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    metadata: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
+    extra_metadata: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -156,7 +159,9 @@ class ScheduleJob(Base):
     post_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("posts.id", ondelete="CASCADE"))
     draft_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("drafts.id", ondelete="CASCADE"))
     scheduled_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    status: Mapped[JobStatusEnum] = mapped_column(SAEnum(JobStatusEnum), default=JobStatusEnum.pending)
+    status: Mapped[str] = mapped_column(
+    String(50),
+    default="pending")
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
     max_retries: Mapped[int] = mapped_column(Integer, default=3)
     result: Mapped[Optional[dict]] = mapped_column(JSON)

@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, Button, Badge, EmptyState, Spinner } from "@/components/ui";
 import { useAccounts, useDisconnectAccount, useSyncAccount } from "@/hooks/useApi";
+import { authApi } from "@/services/api";
 import { Link2, RefreshCw, Trash2, Youtube, Instagram, Linkedin, Twitter, Mail } from "lucide-react";
 import { format } from "date-fns";
 
@@ -13,15 +15,31 @@ const PLATFORMS = [
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-function connectPlatform(platform: string) {
-  const token = localStorage.getItem("access_token");
-  window.location.href = `${API_URL}/auth/oauth/${platform}/start?token=${token}`;
+async function connectPlatform(platform: string) {
+  try {
+    const resp = await authApi.oauthStart(platform);
+    window.location.href = resp.data.redirect_url;
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 export default function AccountsPage() {
   const { data: accounts, isLoading } = useAccounts();
   const disconnect = useDisconnectAccount();
   const sync = useSyncAccount();
+
+  // Track which account is currently syncing
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  const handleSync = async (accountId: string) => {
+    setSyncingId(accountId);
+    try {
+      await sync.mutateAsync(accountId);
+    } finally {
+      setSyncingId(null);
+    }
+  };
 
   const connectedPlatforms = new Set(accounts?.map((a: any) => a.platform) ?? []);
 
@@ -104,11 +122,11 @@ export default function AccountsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        loading={sync.isPending}
-                        onClick={() => sync.mutate(account.id)}
+                        loading={syncingId === account.id}
+                        onClick={() => handleSync(account.id)}
                       >
                         <RefreshCw size={14} />
-                        Sync
+                        {syncingId === account.id ? "Syncing…" : "Sync"}
                       </Button>
                       <Button
                         variant="ghost"

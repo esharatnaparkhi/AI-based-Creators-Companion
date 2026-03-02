@@ -1,4 +1,4 @@
-"""OpenAI LLM and embedding service with caching."""
+"""OpenAI LLM service for draft generation and chat completions."""
 from typing import Optional
 import structlog
 from openai import AsyncOpenAI
@@ -17,23 +17,6 @@ def get_openai_client() -> AsyncOpenAI:
     if _client is None:
         _client = AsyncOpenAI(api_key=settings.openai_api_key)
     return _client
-
-
-async def get_embedding(text: str) -> list[float]:
-    """Generate text embedding with caching."""
-    cache_key = f"emb:{hashlib.sha256(text.encode()).hexdigest()}"
-    cached = await cache_get(cache_key)
-    if cached:
-        return cached
-
-    client = get_openai_client()
-    response = await client.embeddings.create(
-        model=settings.openai_embedding_model,
-        input=text[:8191],  # token limit guard
-    )
-    embedding = response.data[0].embedding
-    await cache_set(cache_key, embedding, ttl=86400)
-    return embedding
 
 
 async def generate_text(
@@ -94,14 +77,37 @@ PLATFORM_RULES = {
 }
 
 
+async def generate_image(prompt: str) -> Optional[str]:
+    """Generate an image with DALL-E 3. Returns the temporary image URL."""
+    client = get_openai_client()
+    try:
+        response = await client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1,
+        )
+        return response.data[0].url
+    except Exception as exc:
+        logger.error("image_generation_failed", error=str(exc))
+        return None
+
+
 async def generate_drafts(
     user_context: str,
     topic: str,
     platform_targets: list[str],
     tone: Optional[str] = None,
     rag_context: Optional[str] = None,
+    keywords: Optional[list[str]] = None,
+    target_audience: Optional[str] = None,
+    content_style: Optional[str] = None,
+    post_length: Optional[str] = None,
 ) -> list[dict]:
     """Generate platform-aware drafts for each target platform."""
+    length_guide = {"short": "Keep it brief and punchy.", "medium": "Moderate length.", "long": "In-depth and detailed."}.get(post_length or "", "")
+
     drafts = []
     for platform in platform_targets:
         rules = PLATFORM_RULES.get(platform, {})
@@ -110,20 +116,27 @@ Platform: {platform}
 Format rules: {rules.get('format', '')}
 Tone: {tone or rules.get('tone', 'engaging')}
 Max characters: {rules.get('max_chars', 2000)}
+{f"Content style: {content_style}" if content_style else ""}
+{f"Length guidance: {length_guide}" if length_guide else ""}
 
 Creator's past content and style context:
 {rag_context or 'No previous context available.'}
 
 Always stay on-brand and within character limits."""
 
+        keyword_line = f"Keywords to include: {', '.join(keywords)}" if keywords else ""
+        audience_line = f"Target audience: {target_audience}" if target_audience else ""
+        context_lines = "\n".join(filter(None, [keyword_line, audience_line, ("Additional context: " + "\n".join(user_context.split("\n")[:5])) if user_context else ""]))
+
         user_prompt = f"""Create content about: {topic}
-{('Additional context: ' + chr(10).join(user_context.split(chr(10))[:5])) if user_context else ''}
+{context_lines}
 
 Return a JSON object with keys:
 - "content": the main post content
 - "hook_variations": list of 3 alternative opening hooks
 - "score": estimated engagement score 1-10
-- "tags": list of relevant tags/topics"""
+- "tags": list of relevant tags/topics
+- "image_prompt": a vivid DALL-E image prompt that would complement this content"""
 
         raw = await generate_text(system_prompt, user_prompt, max_tokens=1500)
 
@@ -134,9 +147,9 @@ Return a JSON object with keys:
             if json_match:
                 parsed = json.loads(json_match.group())
             else:
-                parsed = {"content": raw, "hook_variations": [], "score": 5.0, "tags": []}
+                parsed = {"content": raw, "hook_variations": [], "score": 5.0, "tags": [], "image_prompt": ""}
         except Exception:
-            parsed = {"content": raw, "hook_variations": [], "score": 5.0, "tags": []}
+            parsed = {"content": raw, "hook_variations": [], "score": 5.0, "tags": [], "image_prompt": ""}
 
         drafts.append({
             "platform": platform,

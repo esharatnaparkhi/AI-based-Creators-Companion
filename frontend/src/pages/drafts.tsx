@@ -2,26 +2,28 @@ import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, Button, Badge, Spinner, Input, Select, EmptyState } from "@/components/ui";
 import { useDrafts, useGenerateDrafts, useDeleteDraft, useSchedulePost } from "@/hooks/useApi";
-import { Sparkles, Trash2, Calendar, ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { Sparkles, Trash2, Calendar, ChevronDown, ChevronUp, Copy, Image as ImageIcon } from "lucide-react";
 import { format, addHours } from "date-fns";
 import toast from "react-hot-toast";
 
 const PLATFORMS = ["instagram", "linkedin", "x", "youtube", "email"];
 const TONES = ["casual", "professional", "witty", "educational", "inspirational"];
+const STYLES = ["story", "tips & tricks", "educational", "promotional", "conversational", "behind-the-scenes"];
+const LENGTHS = ["short", "medium", "long"];
+const SCHEDULE_HOURS = [1, 2, 4, 8, 24, 48];
 
 function DraftCard({ draft, onDelete }: { draft: any; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false);
-  const [scheduling, setScheduling] = useState(false);
+  const [scheduleHours, setScheduleHours] = useState(24);
   const schedulePost = useSchedulePost();
 
   const handleSchedule = async () => {
-    const scheduledAt = addHours(new Date(), 24);
+    const scheduledAt = addHours(new Date(), scheduleHours);
     await schedulePost.mutateAsync({
       draft_id: draft.id,
       scheduled_at: scheduledAt.toISOString(),
       platforms: draft.platform_targets || [],
     });
-    setScheduling(false);
   };
 
   const copyContent = () => {
@@ -55,6 +57,21 @@ function DraftCard({ draft, onDelete }: { draft: any; onDelete: () => void }) {
         </div>
       </div>
 
+      {/* Generated image */}
+      {draft.image_url && (
+        <div className="rounded-lg overflow-hidden border border-gray-200">
+          <img
+            src={draft.image_url}
+            alt="AI generated visual"
+            className="w-full max-h-64 object-cover"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+          <p className="text-xs text-gray-400 px-2 py-1 bg-gray-50">
+            <ImageIcon size={10} className="inline mr-1" />AI generated — link expires after 1 hour
+          </p>
+        </div>
+      )}
+
       {/* Hook variations */}
       {expanded && draft.hook_variations?.length > 0 && (
         <div className="pl-3 border-l-2 border-brand-200 space-y-1">
@@ -75,11 +92,22 @@ function DraftCard({ draft, onDelete }: { draft: any; onDelete: () => void }) {
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-        <Button variant="primary" size="sm" onClick={handleSchedule} loading={schedulePost.isPending}>
-          <Calendar size={14} />
-          Schedule (24h)
-        </Button>
+      <div className="flex items-center gap-2 pt-2 border-t border-gray-100 flex-wrap">
+        <div className="flex items-center gap-1">
+          <Button variant="primary" size="sm" onClick={handleSchedule} loading={schedulePost.isPending}>
+            <Calendar size={14} />
+            Schedule
+          </Button>
+          <select
+            value={scheduleHours}
+            onChange={(e) => setScheduleHours(Number(e.target.value))}
+            className="text-xs border border-gray-300 rounded-md px-1.5 py-1.5 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400"
+          >
+            {SCHEDULE_HOURS.map((h) => (
+              <option key={h} value={h}>{h}h</option>
+            ))}
+          </select>
+        </div>
         <Button variant="secondary" size="sm" onClick={copyContent}>
           <Copy size={14} />
           Copy
@@ -102,8 +130,13 @@ export default function DraftsPage() {
   const deleteDraft = useDeleteDraft();
 
   const [topic, setTopic] = useState("");
+  const [keywords, setKeywords] = useState("");
+  const [targetAudience, setTargetAudience] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["instagram", "linkedin"]);
   const [tone, setTone] = useState("casual");
+  const [contentStyle, setContentStyle] = useState("");
+  const [postLength, setPostLength] = useState("medium");
+  const [generateImage, setGenerateImage] = useState(false);
   const [showGenerator, setShowGenerator] = useState(false);
 
   const togglePlatform = (p: string) => {
@@ -117,7 +150,16 @@ export default function DraftsPage() {
       toast.error("Enter a topic first");
       return;
     }
-    await generate.mutateAsync({ platform_targets: selectedPlatforms, topic, tone });
+    await generate.mutateAsync({
+      platform_targets: selectedPlatforms,
+      topic,
+      tone,
+      keywords: keywords.trim() ? keywords.split(",").map((k) => k.trim()).filter(Boolean) : undefined,
+      target_audience: targetAudience.trim() || undefined,
+      content_style: contentStyle || undefined,
+      post_length: postLength,
+      generate_image: generateImage,
+    });
     setShowGenerator(false);
     setTopic("");
   };
@@ -142,10 +184,24 @@ export default function DraftsPage() {
             <h2 className="font-semibold text-gray-800 mb-4">Generate New Drafts</h2>
             <div className="space-y-4">
               <Input
-                label="Topic / Idea"
+                label="Topic / Idea *"
                 placeholder="e.g. 5 productivity tips for content creators"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
+              />
+
+              <Input
+                label="Keywords (comma-separated)"
+                placeholder="e.g. AI, productivity, tools"
+                value={keywords}
+                onChange={(e) => setKeywords(e.target.value)}
+              />
+
+              <Input
+                label="Target Audience"
+                placeholder="e.g. small business owners, Gen Z creators"
+                value={targetAudience}
+                onChange={(e) => setTargetAudience(e.target.value)}
               />
 
               <div>
@@ -167,15 +223,54 @@ export default function DraftsPage() {
                 </div>
               </div>
 
-              <Select
-                label="Tone"
-                value={tone}
-                onChange={(e) => setTone(e.target.value)}
-              >
-                {TONES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  label="Tone"
+                  value={tone}
+                  onChange={(e) => setTone(e.target.value)}
+                >
+                  {TONES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </Select>
+
+                <Select
+                  label="Content Style"
+                  value={contentStyle}
+                  onChange={(e) => setContentStyle(e.target.value)}
+                >
+                  <option value="">Any style</option>
+                  {STYLES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  label="Post Length"
+                  value={postLength}
+                  onChange={(e) => setPostLength(e.target.value)}
+                >
+                  {LENGTHS.map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </Select>
+
+                <div className="flex items-end pb-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={generateImage}
+                      onChange={(e) => setGenerateImage(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      Generate image <span className="text-gray-400">(DALL-E 3)</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
 
               <div className="flex gap-3">
                 <Button
@@ -185,6 +280,7 @@ export default function DraftsPage() {
                 >
                   <Sparkles size={16} />
                   Generate {selectedPlatforms.length} draft{selectedPlatforms.length !== 1 ? "s" : ""}
+                  {generateImage && " + images"}
                 </Button>
                 <Button variant="secondary" onClick={() => setShowGenerator(false)}>Cancel</Button>
               </div>

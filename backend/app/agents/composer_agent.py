@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app.models.orm import Draft, User
 from app.agents.vectorization_agent import vectorization_agent
-from app.services.llm import generate_drafts
+from app.services.llm import generate_drafts, generate_image
 from app.services.audit import write_audit
 
 logger = structlog.get_logger()
@@ -21,6 +21,11 @@ class ComposerAgent:
         topic: str | None = None,
         prompts: list[str] | None = None,
         tone: str | None = None,
+        keywords: list[str] | None = None,
+        target_audience: str | None = None,
+        content_style: str | None = None,
+        post_length: str | None = None,
+        generate_image_flag: bool = False,
         db: AsyncSession | None = None,
     ) -> list[Draft]:
         """Generate drafts for multiple platforms using RAG."""
@@ -54,6 +59,10 @@ Writing style: {persona.get('style', '')}
             platform_targets=platform_targets,
             tone=tone,
             rag_context=rag_context,
+            keywords=keywords,
+            target_audience=target_audience,
+            content_style=content_style,
+            post_length=post_length,
         )
 
         # Compliance check
@@ -66,6 +75,15 @@ Writing style: {persona.get('style', '')}
                 logger.warning("draft_failed_compliance", user_id=user_id, platform=raw.get("platform"))
                 continue
 
+            # Optional image generation
+            image_url: str | None = None
+            if generate_image_flag:
+                image_prompt = raw.get("image_prompt") or f"Visual for '{query[:120]}' — {raw.get('platform', 'social media')} post"
+                try:
+                    image_url = await generate_image(image_prompt)
+                except Exception as exc:
+                    logger.warning("image_gen_skipped", error=str(exc))
+
             draft = Draft(
                 user_id=user_id,
                 content=content,
@@ -74,6 +92,7 @@ Writing style: {persona.get('style', '')}
                 score=raw.get("score"),
                 tags=raw.get("tags", []),
                 hook_variations=raw.get("hook_variations", []),
+                image_url=image_url,
             )
             if db:
                 db.add(draft)

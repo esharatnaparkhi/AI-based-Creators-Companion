@@ -29,11 +29,21 @@ async def register(body: UserRegister, db: AsyncSession = Depends(get_db)):
         name=body.name,
         hashed_password=hash_password(body.password),
     )
-    db.add(user)
-    await db.flush()
 
-    token = create_access_token({"sub": user.id, "email": user.email})
-    return TokenResponse(access_token=token, user_id=user.id, email=user.email)
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    token = create_access_token({
+        "sub": str(user.id),
+        "email": user.email
+    })
+
+    return TokenResponse(
+        access_token=token,
+        user_id=str(user.id),
+        email=user.email
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -44,9 +54,16 @@ async def login(body: UserLogin, db: AsyncSession = Depends(get_db)):
     if not user or not verify_password(body.password, user.hashed_password or ""):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_access_token({"sub": user.id, "email": user.email})
-    return TokenResponse(access_token=token, user_id=user.id, email=user.email)
+    token = create_access_token({
+        "sub": str(user.id),
+        "email": user.email
+    })
 
+    return TokenResponse(
+        access_token=token,
+        user_id=str(user.id),  
+        email=user.email
+    )
 
 @router.get("/oauth/{platform}/start", response_model=OAuthStartResponse)
 async def oauth_start(

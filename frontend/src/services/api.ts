@@ -43,7 +43,7 @@ export const authApi = {
 export const accountsApi = {
   list: () => api.get("/accounts"),
   disconnect: (id: string) => api.delete(`/accounts/${id}`),
-  sync: (accountId: string) => api.post(`/ingest/${accountId}/sync`),
+  sync: (accountId: string) => api.post(`/ingest/${accountId}/sync/wait`),
 };
 
 // ─── Drafts ───────────────────────────────────────────────────────────────────
@@ -53,6 +53,11 @@ export const draftsApi = {
     topic?: string;
     prompts?: string[];
     tone?: string;
+    keywords?: string[];
+    target_audience?: string;
+    content_style?: string;
+    post_length?: string;
+    generate_image?: boolean;
   }) => api.post("/drafts/generate", { user_id: "", ...data }),
   list: (limit = 20, offset = 0) =>
     api.get(`/drafts?limit=${limit}&offset=${offset}`),

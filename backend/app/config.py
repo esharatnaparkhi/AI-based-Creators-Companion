@@ -24,9 +24,8 @@ class Settings(BaseSettings):
     pubsub_topic_analytics: str = "analytics-events"
     bigquery_dataset: str = "creator_analytics"
 
-    # OpenAI
+    # OpenAI (used for draft generation only — embeddings handled by Pinecone)
     openai_api_key: str = ""
-    openai_embedding_model: str = "text-embedding-3-small"
     openai_draft_model: str = "gpt-4o-mini"
     openai_final_model: str = "gpt-4o"
 

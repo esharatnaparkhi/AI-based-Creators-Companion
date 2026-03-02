@@ -22,14 +22,22 @@ async def generate_drafts(
     if not body.platform_targets:
         raise HTTPException(status_code=400, detail="At least one platform target required")
 
-    drafts = await composer_agent.generate(
-        user_id=user_id,
-        platform_targets=body.platform_targets,
-        topic=body.topic,
-        prompts=body.prompts,
-        tone=body.tone,
-        db=db,
-    )
+    try:
+        drafts = await composer_agent.generate(
+            user_id=user_id,
+            platform_targets=body.platform_targets,
+            topic=body.topic,
+            prompts=body.prompts,
+            tone=body.tone,
+            keywords=body.keywords,
+            target_audience=body.target_audience,
+            content_style=body.content_style,
+            post_length=body.post_length,
+            generate_image_flag=body.generate_image,
+            db=db,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Draft generation failed: {exc}")
 
     if not drafts:
         raise HTTPException(status_code=422, detail="Draft generation failed compliance checks")
